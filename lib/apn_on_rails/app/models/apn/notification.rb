@@ -106,14 +106,22 @@ class APN::Notification < APN::Base
       unless notifications.nil? || notifications.empty?
         APN::Connection.open_for_delivery do |conn, sock|
           notifications.each do |noty|
-            conn.write(noty.message_for_sending)
-            noty.sent_at = Time.now
-            noty.save 
+            begin
+              conn.write(noty.message_for_sending)
+              noty.sent_at = Time.now
+              noty.save
+            rescue Exception => e
+              puts "APN on Rails EXCEPTION while sending notification: " + e.message + ", device id = " + noty.device.id.to_s + ", token = " + noty.device.token 
+              break
+            end  
+          end
+          #recurse function unless all notifications are sent  
+          unless APN::Notification.all(:conditions => {:sent_at => nil}).empty?
+            send_notifications
           end
         end 
       end
     end
-
-   
+       
   end # class << self
 end # APN::Notification
